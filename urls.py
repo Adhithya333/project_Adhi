@@ -1,14 +1,25 @@
-from django.urls import path
-
-from . import views
-
-app_name = 'admin_dashboard'
+"""
+URL configuration for exam_malpractice project.
+"""
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
-    path('', views.dashboard_view, name='dashboard'),
-    path('exams/', views.admin_exams_view, name='admin_exams'),
-    path('exams/<int:pk>/questions/', views.admin_exam_questions_view, name='admin_exam_questions'),
-    path('exams/<int:pk>/delete/', views.admin_exam_delete_view, name='admin_exam_delete'),
-    path('performance/', views.admin_student_performance_view, name='admin_student_performance'),
-    path('users/<int:user_id>/toggle-active/', views.user_toggle_active_view, name='user_toggle_active'),
+    path('admin/', admin.site.urls),
+    path('admin-console/', include('admin_dashboard.urls')),
+    path('', include('accounts.urls')),
+    path('student/', include('student.urls')),
+    path('staff/', include('staff.urls')),
+    path('exams/', include('exams.urls')),
+    path('malpractice/', include('malpractice.urls')),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# Custom error handlers (use views that render 404.html / 500.html)
+handler404 = 'accounts.views.page_not_found_view'
+handler500 = 'accounts.views.server_error_view'
