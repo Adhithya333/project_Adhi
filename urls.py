@@ -2,26 +2,17 @@ from django.urls import path
 from . import views
 
 """
-URL routes for AI malpractice monitoring, snapshots, and staff reports.
+URL routes for staff dashboards, user management, and student performance views.
 """
 
-app_name = 'malpractice'
+app_name = 'staff'
 
 urlpatterns = [
-    # Endpoints used by the exam room JavaScript for AI monitoring.
-    path('start/<int:attempt_id>/', views.start_monitoring, name='start_monitoring'),
-    path('stop/<int:attempt_id>/', views.stop_monitoring, name='stop_monitoring'),
-    path('analyze-frame/<int:attempt_id>/', views.analyze_frame, name='analyze_frame'),
-    path('heartbeat/', views.malpractice_heartbeat, name='heartbeat'),
-    path('event/', views.malpractice_event, name='event'),
-    path('snapshot/<int:attempt_id>/', views.malpractice_snapshot, name='snapshot'),
-    path('snapshot/<int:attempt_id>/image/', views.snapshot_image, name='snapshot_image'),
-    # Staff-facing reports and live monitoring dashboards/APIs.
-    path('reports/', views.malpractice_reports, name='reports'),
-    path('reports/<int:attempt_id>/', views.malpractice_report_detail, name='report_detail'),
-    path('live/<int:exam_id>/', views.live_monitoring, name='live_monitoring'),
-    path('live/<int:exam_id>/api/', views.live_monitoring_api, name='live_monitoring_api'),
-    path('exam-monitor/', views.exam_monitor_view, name='exam_monitor'),
-    path('exam-monitor/exam/<int:exam_id>/', views.exam_monitor_exam_view, name='exam_monitor_exam'),
-    path('exam-monitor/room/<int:attempt_id>/', views.exam_monitor_room_view, name='exam_monitor_room'),
+    path('dashboard/', views.dashboard_view, name='dashboard'),
+    path('users/', views.user_list_view, name='user_list'),
+    path('users/create/', views.user_create_view, name='user_create'),
+    path('users/<int:user_id>/edit/', views.user_edit_view, name='user_edit'),
+    path('students/', views.student_list_view, name='student_list'),
+    path('students/performance/', views.student_performance_view, name='student_performance'),
+    path('students/<int:student_id>/', views.student_detail_view, name='student_detail'),
 ]
