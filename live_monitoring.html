@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Live Monitoring: {{ exam.title }} — Exam Security{% endblock %}
+
+{% block content %}
+<div class="dashboard-container live-monitoring-page">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-video"></i> Live Monitoring: {{ exam.title }}</h1>
+        <p>Real-time view of students taking this exam. Camera feeds and metrics update automatically.</p>
+    </div>
+    <div class="exam-actions-bar">
+        <a href="{% url 'exams:exam_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Exams</a>
+    </div>
+
+    <div id="live-alerts" class="live-alerts" aria-live="polite"></div>
+
+    <div id="monitoring-grid" class="monitoring-grid">
+        {% for item in attempt_tokens %}
+        {% with attempt=item.attempt %}
+        <div class="monitor-card" data-student="{{ attempt.student.username }}" data-attempt-id="{{ attempt.id }}">
+            <div class="monitor-card-header">
+                <h3>{{ item.display_name }}</h3>
+                <span class="monitor-alert-badge" data-alert-badge style="display: none;">Suspicious</span>
+            </div>
+            <div class="webcam-panel monitor-webcam-panel">
+                <div class="webcam-wrapper">
+                    <img data-snapshot src="" alt="Live feed" class="monitor-snapshot monitor-snapshot-video" />
+                    <span class="monitor-camera-placeholder" data-camera-placeholder>Waiting for feed…</span>
+                </div>
+                <div class="face-status" data-face-status>
+                    <i class="fas fa-user"></i> <span data-face-status-text>Active</span>
+                </div>
+            </div>
+            <div class="monitor-stats">
+                <div class="monitor-stat">
+                    <span class="stat-value" data-multi="0">0</span>
+                    <span class="stat-label">Multiple Faces</span>
+                </div>
+                <div class="monitor-stat">
+                    <span class="stat-value" data-noface="0">0</span>
+                    <span class="stat-label">No Face</span>
+                </div>
+                <div class="monitor-stat">
+                    <span class="stat-value" data-tab="0">0</span>
+                    <span class="stat-label">Tab Switch</span>
+                </div>
+                <div class="monitor-stat">
+                    <span class="stat-value" data-away="0">0</span>
+                    <span class="stat-label">Looking Away</span>
+                </div>
+                <div class="monitor-stat">
+                    <span class="stat-value" data-phone="0">0</span>
+                    <span class="stat-label">Phone</span>
+                </div>
+            </div>
+            <div class="monitor-status">
+                <span class="pulse"></span> Active
+                <span class="monitor-heartbeat" data-last-heartbeat>Updated: --</span>
+            </div>
+        </div>
+        {% endwith %}
+        {% empty %}
+        <div class="empty-state-card">
+            <i class="fas fa-users-slash fa-3x"></i>
+            <p>No students currently taking this exam.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<input type="hidden" id="exam-id" value="{{ exam.pk }}">
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const examId = document.getElementById('exam-id')?.value;
+    if (!examId) return;
+
+    const prev = {};
+    const lastImageUpdate = {};
+    const IMAGE_MIN_INTERVAL = 6000;
+    const POLL_INTERVAL = 6000;
+    const grid = document.getElementById('monitoring-grid');
+    let io = null;
+
+    function formatLastHeartbeat(isoValue) {
+        if (!isoValue) return 'Updated: waiting...';
+        var t = Date.parse(isoValue);
+        if (Number.isNaN(t)) return 'Updated: waiting...';
+        var deltaSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+        if (deltaSec < 5) return 'Updated: just now';
+        if (deltaSec < 60) return 'Updated: ' + deltaSec + ' seconds ago';
+        var mins = Math.floor(deltaSec / 60);
+        return 'Updated: ' + mins + ' minute' + (mins === 1 ? '' : 's') + ' ago';
+    }
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+    function createCard(a) {
+        const card = document.createElement('div');
+        card.className = 'monitor-card';
+        card.setAttribute('data-student', a.student || '');
+        card.setAttribute('data-attempt-id', a.attempt_id);
+        var displayName = (a.student_name && a.student_name.trim()) ? a.student_name : (a.student || '');
+        card.innerHTML = '<div class="monitor-card-header"><h3>' + escapeHtml(displayName || 'Unknown') + '</h3><span class="monitor-alert-badge" data-alert-badge style="display: none;">Suspicious</span></div>' +
+            '<div class="webcam-panel monitor-webcam-panel"><div class="webcam-wrapper">' +
+            '<img data-snapshot src="" alt="Live feed" class="monitor-snapshot monitor-snapshot-video" />' +
+            '<span class="monitor-camera-placeholder" data-camera-placeholder>Waiting for feed…</span></div>' +
+            '<div class="face-status" data-face-status><i class="fas fa-user"></i> <span data-face-status-text>Active</span></div></div>' +
+            '<div class="monitor-stats"><div class="monitor-stat"><span class="stat-value" data-multi>0</span><span class="stat-label">Multiple Faces</span></div>' +
+            '<div class="monitor-stat"><span class="stat-value" data-noface>0</span><span class="stat-label">No Face</span></div>' +
+            '<div class="monitor-stat"><span class="stat-value" data-tab>0</span><span class="stat-label">Tab Switch</span></div>' +
+            '<div class="monitor-stat"><span class="stat-value" data-away>0</span><span class="stat-label">Looking Away</span></div>' +
+            '<div class="monitor-stat"><span class="stat-value" data-phone>0</span><span class="stat-label">Phone</span></div></div>' +
+            '<div class="monitor-status"><span class="pulse"></span> Active <span class="monitor-heartbeat" data-last-heartbeat>Updated: --</span></div>';
+        if (io) io.observe(card);
+        return card;
+    }
+
+    function toInt(value) {
+        var n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function updateCardStatsOnly(card, a) {
+        const multi = card.querySelector('[data-multi]');
+        const noface = card.querySelector('[data-noface]');
+        const tab = card.querySelector('[data-tab]');
+        const away = card.querySelector('[data-away]');
+        const phone = card.querySelector('[data-phone]');
+        const badge = card.querySelector('[data-alert-badge]');
+        const faceStatus = card.querySelector('[data-face-status]');
+        const faceStatusText = card.querySelector('[data-face-status-text]');
+        const heartbeat = card.querySelector('[data-last-heartbeat]');
+        var multipleFaces = toInt(a.multiple_faces);
+        var noFace = toInt(a.no_face);
+        var tabSwitch = toInt(a.tab_switch);
+        var lookingAway = toInt(a.looking_away);
+        var phoneUsage = toInt(a.phone_usage);
+
+        if (multi) multi.textContent = multipleFaces;
+        if (noface) noface.textContent = noFace;
+        if (tab) tab.textContent = tabSwitch;
+        if (away) away.textContent = lookingAway;
+        if (phone) phone.textContent = phoneUsage;
+
+        var total = multipleFaces + noFace + tabSwitch + lookingAway + phoneUsage;
+        if (faceStatus) {
+            faceStatus.className = 'face-status ' + (total > 0 ? 'status-danger' : 'status-ok');
+            if (faceStatusText) faceStatusText.textContent = total > 0 ? 'Suspicious' : 'Active';
+        }
+        if (badge) badge.style.display = total > 0 ? 'inline-block' : 'none';
+        if (total > 0) card.classList.add('monitor-card-suspicious'); else card.classList.remove('monitor-card-suspicious');
+        card.dataset.snapshotUrl = a.snapshot_url || '';
+        card.dataset.attemptId = String(a.attempt_id);
+        if (heartbeat) heartbeat.textContent = formatLastHeartbeat(a.last_heartbeat);
+        var name = (a.student_name && a.student_name.trim()) ? a.student_name : (a.student || 'Student');
+        var prevKey = String(a.attempt_id);
+        if (!prev[prevKey]) prev[prevKey] = { multi: 0, noface: 0, tab: 0, away: 0, phone: 0 };
+        var p = prev[prevKey];
+        var activityMsg = '';
+        if (multipleFaces > p.multi) activityMsg = 'Multiple faces detected';
+        else if (phoneUsage > p.phone) activityMsg = 'Phone detected';
+        else if (tabSwitch > p.tab) activityMsg = 'Tab switch detected';
+        else if (noFace > p.noface) activityMsg = 'No face detected';
+        else if (lookingAway > p.away) activityMsg = 'Looking away';
+        if (activityMsg) showAlert(escapeHtml(name) + ': ' + activityMsg);
+        prev[prevKey] = { multi: multipleFaces, noface: noFace, tab: tabSwitch, away: lookingAway, phone: phoneUsage };
+    }
+
+    function processVisibleSnapshotsSequential() {
+        var visible = [];
+        grid.querySelectorAll('.monitor-card').forEach(function(card) {
+            if (card.dataset.visible === '1' && card.dataset.snapshotUrl) {
+                var aid = card.dataset.attemptId;
+                var last = lastImageUpdate[aid] || 0;
+                if (Date.now() - last >= IMAGE_MIN_INTERVAL) visible.push(card);
+            }
+        });
+        if (visible.length === 0) return;
+        function next(idx) {
+            if (idx >= visible.length) return;
+            var card = visible[idx];
+            var snapshotImg = card.querySelector('[data-snapshot]');
+            var placeholder = card.querySelector('[data-camera-placeholder]');
+            if (!snapshotImg) { next(idx + 1); return; }
+            lastImageUpdate[card.dataset.attemptId] = Date.now();
+            var url = card.dataset.snapshotUrl + (card.dataset.snapshotUrl.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+            var preload = new Image();
+            preload.onload = function() {
+                snapshotImg.src = url;
+                snapshotImg.style.display = 'block';
+                if (placeholder) placeholder.style.display = 'none';
+                setTimeout(function() { next(idx + 1); }, 350);
+            };
+            preload.onerror = function() {
+                if (placeholder) placeholder.style.display = 'flex';
+                setTimeout(function() { next(idx + 1); }, 350);
+            };
+            preload.src = url;
+        }
+        next(0);
+    }
+
+    io = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            var card = entry.target;
+            if (entry.isIntersecting) card.dataset.visible = '1';
+            else card.dataset.visible = '0';
+        });
+    }, { root: null, rootMargin: '100px', threshold: 0.1 });
+    grid.querySelectorAll('.monitor-card').forEach(function(card) { io.observe(card); });
+
+    var refreshInProgress = false;
+    function refresh() {
+        if (refreshInProgress) return;
+        refreshInProgress = true;
+        fetch('/malpractice/live/' + examId + '/api/', { credentials: 'same-origin' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('API error');
+                return r.json();
+            })
+            .then(function(data) {
+                if (!grid || !data.attempts) return;
+                data.attempts.forEach(function(a) {
+                    var card = grid.querySelector('[data-attempt-id="' + a.attempt_id + '"]');
+                    if (!card) {
+                        card = createCard(a);
+                        grid.appendChild(card);
+                    }
+                    updateCardStatsOnly(card, a);
+                });
+                var emptyEl = grid.querySelector('.empty-state-card');
+                if (emptyEl && data.attempts.length > 0) emptyEl.remove();
+                setTimeout(processVisibleSnapshotsSequential, 100);
+            })
+            .catch(function() {
+                var emptyEl = grid && grid.querySelector('.empty-state-card');
+                if (emptyEl) emptyEl.innerHTML = '<i class="fas fa-exclamation-triangle fa-3x"></i><p>Unable to load live feed. Check your connection and try again.</p>';
+            })
+            .finally(function() { refreshInProgress = false; });
+    }
+    function showAlert(msg) {
+        var el = document.getElementById('live-alerts');
+        if (!el) return;
+        var div = document.createElement('div');
+        div.className = 'live-alert-toast';
+        div.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ';
+        div.appendChild(document.createTextNode(msg));
+        el.appendChild(div);
+        setTimeout(function() { div.remove(); }, 5000);
+    }
+
+    refresh();
+    var pollTimer = setInterval(refresh, POLL_INTERVAL);
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) clearInterval(pollTimer);
+        else {
+            pollTimer = setInterval(refresh, POLL_INTERVAL);
+            refresh();
+        }
+    });
+})();
+</script>
+<style>
+.live-monitoring-page { padding-bottom: 3rem; }
+.monitor-run-script { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); }
+.monitor-run-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem; }
+.monitor-run-desc { font-size: 0.8rem; color: var(--gray-color); margin: 0 0 0.5rem 0; line-height: 1.35; }
+.monitor-run-wrap { display: flex; gap: 0.5rem; align-items: flex-start; }
+.monitor-run-wrap .monitor-run-pre { flex: 1; min-width: 0; }
+.monitor-run-pre { background: #1e1e1e; color: #d4d4d4; padding: 0.5rem 0.6rem; border-radius: 6px; overflow-x: auto; font-size: 0.75rem; margin: 0; white-space: pre-wrap; word-break: break-all; }
+.btn-copy-command { flex-shrink: 0; white-space: nowrap; }
+.live-alerts { position: fixed; top: 5.5rem; right: 1.25rem; z-index: 1100; display: flex; flex-direction: column; gap: 0.5rem; max-width: 340px; min-width: 280px; pointer-events: none; }
+.live-alerts > * { pointer-events: auto; }
+.live-alert-toast { background: #fef3c7; border: 2px solid #f59e0b; color: #92400e; padding: 0.875rem 1.125rem; border-radius: 0.5rem; font-size: 0.9rem; font-weight: 500; box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.15); animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 0.5rem; line-height: 1.4; }
+.live-alert-toast i { flex-shrink: 0; font-size: 1.125rem; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(1rem); } to { opacity: 1; transform: translateX(0); } }
+.monitoring-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; padding-right: 1rem; }
+.monitor-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: var(--shadow-md); transition: box-shadow 0.2s, border-color 0.2s; min-width: 0; }
+.monitor-card.monitor-card-suspicious { border: 2px solid #f59e0b; box-shadow: 0 0 0 1px #f59e0b; }
+.monitor-card-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+.monitor-card-header h3 { margin: 0 0 1rem; font-size: 1.1rem; word-break: break-word; flex: 1; min-width: 0; }
+.monitor-alert-badge { background: #dc2626; color: white; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 0.25rem; flex-shrink: 0; }
+.monitor-webcam-panel { position: static; margin-bottom: 1rem; }
+.monitor-webcam-panel .webcam-wrapper { position: relative; width: 100%; aspect-ratio: 4/3; min-height: 180px; }
+.monitor-webcam-panel .monitor-snapshot-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+.monitor-webcam-panel .monitor-camera-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 0.85rem; text-align: center; padding: 1rem; background: #111; }
+.monitor-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
+.monitor-stat { text-align: center; padding: 0.5rem; background: var(--light-color); border-radius: 0.5rem; min-width: 0; }
+.monitor-stat .stat-value { display: block; font-weight: 700; font-size: 1.1rem; }
+.monitor-stat .stat-label { font-size: 0.7rem; color: var(--gray-color); line-height: 1.2; }
+.monitor-status { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--success-color); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.monitor-heartbeat { color: var(--gray-color); font-size: 0.78rem; font-weight: 500; }
+.pulse { display: inline-block; width: 8px; height: 8px; background: var(--success-color); border-radius: 50%; animation: pulse 1.5s infinite; margin-right: 0.5rem; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@media (max-width: 700px) {
+    .monitoring-grid { grid-template-columns: 1fr; padding-right: 0; }
+    .monitor-stats { grid-template-columns: repeat(2, 1fr); }
+    .live-alerts { left: 1rem; right: 1rem; max-width: none; }
+}
+</style>
+{% endblock %}

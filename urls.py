@@ -2,17 +2,14 @@ from django.urls import path
 from . import views
 
 """
-URL routes for staff dashboards, user management, and student performance views.
+URL routes for student dashboards, profile management, and results pages.
 """
 
-app_name = 'staff'
+app_name = 'student'
 
 urlpatterns = [
     path('dashboard/', views.dashboard_view, name='dashboard'),
-    path('users/', views.user_list_view, name='user_list'),
-    path('users/create/', views.user_create_view, name='user_create'),
-    path('users/<int:user_id>/edit/', views.user_edit_view, name='user_edit'),
-    path('students/', views.student_list_view, name='student_list'),
-    path('students/performance/', views.student_performance_view, name='student_performance'),
-    path('students/<int:student_id>/', views.student_detail_view, name='student_detail'),
+    path('results/', views.results_view, name='results'),
+    path('profile/', views.profile_edit_view, name='profile'),
+    path('results/<int:attempt_id>/', views.result_detail_view, name='result_detail'),
 ]

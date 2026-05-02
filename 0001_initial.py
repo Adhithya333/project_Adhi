@@ -15,13 +15,14 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='StaffProfile',
+            name='StudentProfile',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('employee_id', models.CharField(max_length=50, unique=True)),
-                ('department', models.CharField(blank=True, max_length=100)),
-                ('designation', models.CharField(blank=True, max_length=100)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='staff_profile', to=settings.AUTH_USER_MODEL)),
+                ('student_id', models.CharField(max_length=50, unique=True)),
+                ('course', models.CharField(blank=True, max_length=100)),
+                ('year', models.IntegerField(default=1)),
+                ('semester', models.IntegerField(default=1)),
+                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='student_profile', to=settings.AUTH_USER_MODEL)),
             ],
         ),
     ]

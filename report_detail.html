@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Report: {{ attempt.student.username }} - {{ attempt.exam.title }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="report-detail-card">
+        <h1><i class="fas fa-chart-bar"></i> Malpractice Report</h1>
+        
+        <div class="report-summary">
+            <div class="report-row">
+                <span class="label">Student:</span>
+                <span>{{ attempt.student.get_full_name|default:attempt.student.username }}</span>
+            </div>
+            <div class="report-row">
+                <span class="label">Exam:</span>
+                <span>{{ attempt.exam.title }}</span>
+            </div>
+            <div class="report-row">
+                <span class="label">Malpractice Score:</span>
+                <span class="malpractice-score malpractice-{% if attempt.malpractice_score >= 50 %}high{% elif attempt.malpractice_score >= 20 %}medium{% else %}low{% endif %}">
+                    {{ attempt.malpractice_score|floatformat:1 }}%
+                </span>
+            </div>
+            <div class="report-row">
+                <span class="label">Status:</span>
+                <span class="attempt-badge attempt-{{ attempt.status }}">{{ attempt.get_status_display }}</span>
+            </div>
+            <div class="report-row">
+                <span class="label">Started:</span>
+                <span>{{ attempt.started_at|date:"d/m/y g:i A" }}</span>
+            </div>
+            <div class="report-row">
+                <span class="label">Ended:</span>
+                <span>{{ attempt.ended_at|date:"d/m/y g:i A"|default:"-" }}</span>
+            </div>
+        </div>
+
+        {% if session %}
+        <h2 class="section-title">Session Metrics</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <span class="metric-value">{{ session.multiple_faces_count }}</span>
+                <span class="metric-label">Multiple Faces</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-value">{{ session.no_face_count }}</span>
+                <span class="metric-label">No Face Detected</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-value">{{ session.tab_switch_count }}</span>
+                <span class="metric-label">Tab Switches</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-value">{{ session.looking_away_count }}</span>
+                <span class="metric-label">Looking Away</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-value">{{ session.phone_usage_count|default:0 }}</span>
+                <span class="metric-label">Phone Detected</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <h2 class="section-title">Incident Log</h2>
+        <div class="events-list">
+            {% for event in events %}
+            <div class="event-item event-{{ event.severity }}">
+                <span class="event-type">{{ event.get_event_type_display }}</span>
+                <span class="event-severity">{{ event.get_severity_display }}</span>
+                <span class="event-time">{{ event.timestamp|date:"g:i:s A" }}</span>
+                {% if event.event_type == 'tab_switch' and event.details.source %}
+                <span class="event-meta">Source: {{ event.details.source }}</span>
+                {% endif %}
+                {% if event.screenshot %}
+                <a href="{{ event.screenshot.url }}" target="_blank" class="event-screenshot-link" title="View camera snapshot evidence">📷</a>
+                {% elif event.event_type == 'tab_switch' %}
+                <span class="event-no-shot">No screenshot (browser tab switch event)</span>
+                {% endif %}
+            </div>
+            {% empty %}
+            <p class="empty-state">No detailed events recorded.</p>
+            {% endfor %}
+        </div>
+
+        <a href="{% url 'malpractice:reports' %}" class="btn btn-secondary" style="margin-top: 2rem;">
+            <i class="fas fa-arrow-left"></i> Back to Reports
+        </a>
+    </div>
+</div>
+
+<style>
+.report-detail-card { background: white; border-radius: 1rem; padding: 2rem; box-shadow: var(--shadow-md); max-width: 800px; }
+.report-summary { margin: 1.5rem 0; }
+.report-row { display: flex; gap: 1rem; margin: 0.5rem 0; }
+.report-row .label { font-weight: 600; min-width: 140px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 1rem 0; }
+.metric-card { background: var(--light-color); padding: 1rem; border-radius: 0.5rem; text-align: center; }
+.metric-value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
+.metric-label { font-size: 0.8rem; color: var(--gray-color); }
+.events-list { margin: 1rem 0; }
+.event-item { display: flex; gap: 1rem; padding: 0.75rem; margin: 0.25rem 0; border-radius: 0.5rem; background: var(--light-color); }
+.event-type { font-weight: 500; }
+.event-severity { font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 0.25rem; }
+.event-low { background: #d1fae5; }
+.event-medium { background: #fef3c7; }
+.event-high, .event-critical { background: #fee2e2; }
+.event-time { margin-left: auto; color: var(--gray-color); font-size: 0.9rem; }
+.event-screenshot-link { margin-left: 0.5rem; }
+.event-meta { color: var(--gray-color); font-size: 0.85rem; }
+.event-no-shot { color: var(--gray-color); font-size: 0.8rem; font-style: italic; }
+</style>
+{% endblock %}

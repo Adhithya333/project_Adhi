@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Result - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-chart-line"></i> Exam Result - {{ exam.title }}</h1>
+        <p>Your performance summary.</p>
+    </div>
+
+    {% if attempt.status == 'terminated' %}
+    <div class="alert alert-warning" style="margin-bottom: 1.5rem;">
+        <i class="fas fa-info-circle"></i>
+        <strong>Why was my exam auto-submitted?</strong> The system detected malpractice indicators (e.g., looking away, phone use, no face, multiple faces, tab switching) that exceeded the allowed limit. Your attempt was flagged for staff review. If you believe this was an error, contact your instructor.
+    </div>
+    {% elif attempt.status == 'flagged' %}
+    <div class="alert alert-warning" style="margin-bottom: 1.5rem;">
+        <i class="fas fa-exclamation-triangle"></i>
+        Your exam was flagged for staff review due to detected anomalies. Staff will review the evidence.
+    </div>
+    {% endif %}
+
+    <div class="result-summary-card">
+        <div class="result-stats">
+            <div class="result-stat">
+                <span class="result-value">{{ attempt.total_marks|floatformat:0 }}</span>
+                <span class="result-label">Marks Obtained</span>
+            </div>
+            <div class="result-stat">
+                <span class="result-value">{{ exam.total_marks }}</span>
+                <span class="result-label">Total Marks</span>
+            </div>
+            <div class="result-stat">
+                <span class="result-value">{{ attempt.percentage|floatformat:1 }}%</span>
+                <span class="result-label">Percentage</span>
+            </div>
+            <div class="result-stat">
+                <span class="result-value attempt-status attempt-{{ attempt.status }}">{{ attempt.get_status_display }}</span>
+                <span class="result-label">Status</span>
+            </div>
+            {% if attempt.status == 'terminated' and attempt.ended_at %}
+            <div class="result-stat">
+                <span class="result-value">{{ attempt.ended_at|date:"g:i:s A" }}</span>
+                <span class="result-label">Auto-submitted At</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="content-card">
+        <h2 class="section-title">Answer Review</h2>
+        <table class="exam-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Question</th>
+                    <th>Your Answer</th>
+                    <th>Correct Answer</th>
+                    <th>Result</th>
+                    <th>Marks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sa in answers %}
+                <tr class="{% if sa.selected_answer %}{% if sa.is_correct %}answer-correct{% else %}answer-wrong{% endif %}{% endif %}">
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ sa.question.question_text|truncatewords:20 }}</td>
+                    <td>{{ sa.selected_answer|default:"—" }}</td>
+                    <td>{{ sa.question.correct_answer }}</td>
+                    <td>
+                        {% if not sa.selected_answer %}
+                            {% if attempt.status == 'terminated' %}
+                        <span class="text-muted" title="Full reason: {{ auto_submit_reason_full_text }}"><i class="fas fa-exclamation-circle"></i> Not Recorded (Auto-submitted: {{ auto_submit_reason_text }})</span>
+                            {% else %}
+                        <span class="text-muted"><i class="fas fa-minus-circle"></i> Not Attempted</span>
+                            {% endif %}
+                        {% elif sa.is_correct %}
+                        <span class="badge-success"><i class="fas fa-check"></i> Correct</span>
+                        {% else %}
+                        <span class="badge-danger"><i class="fas fa-times"></i> Wrong</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ sa.marks_awarded|floatformat:1 }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6">No answers recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="exam-actions-bar">
+        <a href="{% url 'exams:exam_list' %}" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Back to Exams</a>
+    </div>
+</div>
+{% endblock %}

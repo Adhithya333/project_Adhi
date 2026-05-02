@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Results - Exam Security{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-chart-line"></i> My Exam Results</h1>
+        <p>View your completed exam attempts and malpractice scores.</p>
+    </div>
+
+    <div class="exam-actions-bar">
+        <a href="{% url 'student:dashboard' %}" class="btn btn-secondary"><i class="fas fa-home"></i> Dashboard</a>
+        <a href="{% url 'exams:exam_list' %}" class="btn btn-secondary"><i class="fas fa-play"></i> Attend Exam</a>
+        <a href="{% url 'student:results' %}" class="btn btn-primary"><i class="fas fa-chart-line"></i> Results</a>
+        <a href="{% url 'student:profile' %}" class="btn btn-secondary"><i class="fas fa-user-edit"></i> Profile</a>
+    </div>
+
+    <div class="content-card">
+        <div class="exam-table-container">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Exam</th>
+                        <th>Status</th>
+                        <th>Malpractice Score</th>
+                        <th>Completed</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attempt in attempts %}
+                    <tr>
+                        <td><strong>{{ attempt.exam.title }}</strong></td>
+                        <td>
+                            <span class="attempt-badge attempt-{{ attempt.status }}">{{ attempt.get_status_display }}</span>
+                        </td>
+                        <td>
+                            <span class="malpractice-score malpractice-{% if attempt.malpractice_score >= 50 %}high{% elif attempt.malpractice_score >= 20 %}medium{% else %}low{% endif %}">
+                                {{ attempt.malpractice_score|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>{{ attempt.ended_at|date:"d/m/y g:i A"|default:"—" }}</td>
+                        <td>
+                            <a href="{% url 'student:result_detail' attempt.pk %}" class="btn btn-sm btn-secondary"><i class="fas fa-file-alt"></i> Details</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="empty-cell">No completed exams yet. <a href="{% url 'exams:exam_list' %}">Take an exam</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,9 +1,9 @@
 from django.contrib import admin
-from .models import StaffProfile
+from .models import StudentProfile
 
 
-@admin.register(StaffProfile)
-class StaffProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'employee_id', 'department', 'designation')
-    search_fields = ('user__username', 'employee_id', 'department', 'designation')
-    list_filter = ('department', 'designation')
+@admin.register(StudentProfile)
+class StudentProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'student_id', 'course', 'year', 'semester')
+    search_fields = ('user__username', 'student_id', 'course')
+    list_filter = ('year', 'semester', 'course')

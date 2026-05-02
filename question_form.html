@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-question-circle"></i> {{ title }}</h1>
+        <p>Exam: {{ exam.title }}</p>
+    </div>
+
+    <div class="exam-actions-bar">
+        <a href="{% url 'exams:question_list' exam.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to questions</a>
+        <a href="{% url 'exams:question_document_upload' exam.pk %}" class="btn btn-secondary" title="Import many questions from a PDF or image"><i class="fas fa-file-upload"></i> Upload Questions</a>
+    </div>
+
+    <div class="content-card">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a href="{% url 'exams:question_list' exam.pk %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load tz %}
+
+{% block title %}Exam Management - Staff{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-tasks"></i> Exam Management</h1>
+        <p>Create and manage exams with AI malpractice detection.</p>
+    </div>
+
+    <div class="exam-actions-bar">
+        <a href="{% url 'exams:exam_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create Exam
+        </a>
+        <a href="{% url 'malpractice:reports' %}" class="btn btn-secondary">
+            <i class="fas fa-flag"></i> Malpractice Reports
+        </a>
+    </div>
+
+    <div class="exam-tabs">
+        <button type="button" class="exam-tab active" data-tab="live" aria-selected="true" role="tab">
+            <i class="fas fa-play-circle"></i> Live & Upcoming
+        </button>
+        <button type="button" class="exam-tab" data-tab="past" aria-selected="false" role="tab">
+            <i class="fas fa-history"></i> Past Exams
+        </button>
+    </div>
+
+    <div class="exam-tab-panel active" id="panel-live" role="tabpanel">
+        {% if live_exams %}
+        <h3 class="exam-section-title"><i class="fas fa-circle text-live"></i> Live Now</h3>
+        <div class="exam-table-container">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Exam</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>Attempts</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in live_exams %}
+                    <tr>
+                        <td><strong>{{ exam.title }}</strong></td>
+                        <td>{{ exam.duration_minutes }} min</td>
+                        <td><span class="exam-badge exam-badge-live">Live</span></td>
+                        <td>{{ exam.attempts.count }}</td>
+                        <td class="action-buttons">
+                            <a href="{% url 'exams:exam_detail' exam.pk %}" class="btn btn-sm" title="View"><i class="fas fa-eye"></i></a>
+                            {% if exam.status == 'scheduled' or exam.status == 'active' %}
+                            <a href="{% url 'exams:exam_edit' exam.pk %}" class="btn btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
+                            {% endif %}
+                            <a href="{% url 'malpractice:live_monitoring' exam.pk %}" class="btn btn-sm btn-warning" title="Live Monitor"><i class="fas fa-video"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if upcoming_exams %}
+        <h3 class="exam-section-title"><i class="fas fa-clock text-upcoming"></i> Upcoming</h3>
+        <div class="exam-table-container">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Exam</th>
+                        <th>Duration</th>
+                        <th>Starts</th>
+                        <th>Attempts</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in upcoming_exams %}
+                    <tr>
+                        <td><strong>{{ exam.title }}</strong></td>
+                        <td>{{ exam.duration_minutes }} min</td>
+                        <td>{% timezone exam_tz %}{{ exam.start_time|date:"d/m/y g:i A" }}{% endtimezone %}</td>
+                        <td>{{ exam.attempts.count }}</td>
+                        <td class="action-buttons">
+                            <a href="{% url 'exams:exam_detail' exam.pk %}" class="btn btn-sm" title="View"><i class="fas fa-eye"></i></a>
+                            {% if exam.status == 'scheduled' or exam.status == 'active' %}
+                            <a href="{% url 'exams:exam_edit' exam.pk %}" class="btn btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
+                            {% endif %}
+                            <a href="{% url 'malpractice:live_monitoring' exam.pk %}" class="btn btn-sm btn-warning" title="Live Monitor"><i class="fas fa-video"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if not live_exams and not upcoming_exams %}
+        <div class="empty-state-card">
+            <i class="fas fa-inbox fa-3x"></i>
+            <p>No live or upcoming exams. <a href="{% url 'exams:exam_create' %}">Create one</a></p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="exam-tab-panel" id="panel-past" role="tabpanel" hidden>
+        {% if past_exams %}
+        <div class="exam-table-container">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Exam</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>Attempts</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in past_exams %}
+                    <tr>
+                        <td><strong>{{ exam.title }}</strong></td>
+                        <td>{{ exam.duration_minutes }} min</td>
+                        <td><span class="exam-badge exam-badge-completed">Completed</span></td>
+                        <td>{{ exam.attempts.count }}</td>
+                        <td class="action-buttons">
+                            <a href="{% url 'exams:exam_detail' exam.pk %}" class="btn btn-sm" title="View"><i class="fas fa-eye"></i></a>
+                            <a href="{% url 'exams:exam_detail' exam.pk %}" class="btn btn-sm btn-warning" title="View attempts and malpractice reports">
+                                <i class="fas fa-chart-bar"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state-card">
+            <i class="fas fa-inbox fa-3x"></i>
+            <p>No past exams yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+(function() {
+    var tabs = document.querySelectorAll('.exam-tab');
+    var panels = document.querySelectorAll('.exam-tab-panel');
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            var tabId = tab.getAttribute('data-tab');
+            tabs.forEach(function(t) { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+            panels.forEach(function(p) { p.classList.remove('active'); p.hidden = p.id !== 'panel-' + tabId; });
+            tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) { panel.classList.add('active'); panel.hidden = false; }
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Questions — {{ exam.title }} — Admin Console{% endblock %}
+
+{% block content %}
+<div class="dashboard-container admin-console">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-list-ol"></i> Questions</h1>
+        <p>
+            <strong>{{ exam.title }}</strong> —
+            {% if can_modify_questions %}
+            edit or remove individual questions. Adding questions uses the same workflow as staff (including bulk upload).
+            {% else %}
+            read-only mode because this exam is completed or outside the editable time window.
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="exam-actions-bar">
+        <a href="{% url 'admin_dashboard:admin_exams' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> All exams</a>
+        <a href="{% url 'exams:exam_detail' exam.pk %}" class="btn btn-secondary">Exam detail</a>
+        {% if can_modify_questions %}
+        <a href="{% url 'exams:question_create' exam.pk %}" class="btn btn-primary"><i class="fas fa-plus"></i> Add question</a>
+        <a href="{% url 'exams:question_document_upload' exam.pk %}" class="btn btn-secondary"><i class="fas fa-file-upload"></i> Bulk upload</a>
+        {% endif %}
+    </div>
+
+    <div class="content-card admin-panel-card">
+        {% if questions %}
+        <div class="exam-table-container">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Type</th>
+                        <th>Text</th>
+                        <th>Marks</th>
+                        {% if can_modify_questions %}
+                        <th></th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in questions %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ q.get_question_type_display }}</td>
+                        <td>{{ q.question_text|truncatewords:24 }}</td>
+                        <td>{{ q.marks }}</td>
+                        {% if can_modify_questions %}
+                        <td class="admin-exam-actions">
+                            <a href="{% url 'exams:question_edit' exam.pk q.pk %}" class="btn btn-sm btn-secondary">Edit</a>
+                            <form method="post" action="{% url 'exams:question_delete' exam.pk q.pk %}" class="admin-inline-delete-form" onsubmit="return confirm('Remove this question?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{% url 'admin_dashboard:admin_exam_questions' exam.pk %}">
+                                <button type="submit" class="btn btn-sm btn-secondary" style="border-color: #fecaca; color: #b91c1c;"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No questions for this exam yet.{% if can_modify_questions %} Use Add question or Bulk upload.{% endif %}</p>
+        {% endif %}
+    </div>
+</div>
+<style>
+.admin-exam-actions { white-space: nowrap; vertical-align: middle; }
+.admin-exam-actions .btn { margin: 0.15rem 0.15rem 0.15rem 0; }
+.admin-inline-delete-form { display: inline; margin: 0; }
+</style>
+{% endblock %}

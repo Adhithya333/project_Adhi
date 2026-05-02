@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - Exam Security System{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-user-plus"></i> {{ title }}</h1>
+        <p>{% if user_obj %}Edit user details.{% else %}Create a new system user.{% endif %}</p>
+    </div>
+
+    <div class="exam-actions-bar">
+        {% if user.user_type == 'staff' or user.is_superuser %}
+        <a href="{% url 'staff:dashboard' %}" class="btn btn-secondary"><i class="fas fa-home"></i> Dashboard</a>
+        {% else %}
+        <a href="{% url 'accounts:dashboard' %}" class="btn btn-secondary"><i class="fas fa-home"></i> Dashboard</a>
+        {% endif %}
+        <a href="{% url 'staff:user_list' %}" class="btn btn-primary"><i class="fas fa-users-cog"></i> User List</a>
+        <a href="{% url 'staff:user_create' %}" class="btn btn-secondary"><i class="fas fa-plus"></i> Create User</a>
+    </div>
+
+    <div class="form-card">
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<span class="form-error">{{ field.errors|striptags }}</span>{% endif %}
+            </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save</button>
+                <a href="{% url 'staff:user_list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Questions - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <article class="page-sheet" aria-labelledby="questions-page-title">
+        <header class="page-sheet__header">
+            <h1 id="questions-page-title"><i class="fas fa-question-circle" aria-hidden="true"></i> Questions — {{ exam.title }}</h1>
+            <p>
+                Total marks: {{ exam.total_marks }}.
+                {% if can_modify_questions %}
+                Add, edit, delete, or import questions below.
+                {% else %}
+                This exam is read-only because it is completed or outside the editable time window.
+                {% endif %}
+            </p>
+        </header>
+
+        <div class="page-sheet__toolbar" role="toolbar" aria-label="Question list actions">
+            <a href="{% url 'exams:exam_detail' exam.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Exam</a>
+            {% if can_modify_questions %}
+            <a href="{% url 'exams:question_create' exam.pk %}" class="btn btn-primary"><i class="fas fa-plus"></i> Add Question</a>
+            <a href="{% url 'exams:question_document_upload' exam.pk %}" class="btn btn-secondary" title="Import from PDF or image (OCR)"><i class="fas fa-file-upload"></i> Upload Questions</a>
+            {% endif %}
+        </div>
+
+        <div class="page-sheet__body">
+            <div class="table-scroll">
+                <table class="exam-table question-list-table">
+                    <thead>
+                        <tr>
+                            <th class="col-no">#</th>
+                            <th class="col-question">Question</th>
+                            <th class="col-type">Type</th>
+                            <th class="col-marks">Marks</th>
+                            <th class="col-correct">Correct</th>
+                            {% if can_modify_questions %}
+                            <th class="col-actions">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in questions %}
+                        <tr>
+                            <td class="col-no">{{ forloop.counter }}</td>
+                            <td class="col-question">{{ q.question_text|truncatewords:15 }}</td>
+                            <td class="col-type"><span class="exam-badge exam-badge-scheduled">{{ q.get_question_type_display }}</span></td>
+                            <td class="col-marks">{{ q.marks }}{% if q.negative_marks %} (-{{ q.negative_marks }}){% endif %}</td>
+                            <td class="col-correct">{{ q.correct_answer }}</td>
+                            {% if can_modify_questions %}
+                            <td class="col-actions">
+                                <div class="action-buttons">
+                                    <a href="{% url 'exams:question_edit' exam.pk q.pk %}" class="btn btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
+                                    <form method="post" class="form--no-busy" action="{% url 'exams:question_delete' exam.pk q.pk %}" onsubmit="return confirm('Delete this question?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if can_modify_questions %}6{% else %}5{% endif %}" class="empty-cell">
+                                No questions yet.{% if can_modify_questions %} <a href="{% url 'exams:question_create' exam.pk %}">Add first question</a>{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </article>
+</div>
+<style>
+.question-list-table { table-layout: fixed; min-width: 980px; }
+.question-list-table .col-no { width: 6%; text-align: center; }
+.question-list-table .col-question { width: 38%; }
+.question-list-table .col-type { width: 16%; white-space: nowrap; text-align: center; }
+.question-list-table .col-marks { width: 14%; white-space: nowrap; text-align: center; }
+.question-list-table .col-correct { width: 10%; white-space: nowrap; text-align: center; }
+.question-list-table .col-actions { width: 16%; white-space: nowrap; text-align: center; }
+.question-list-table th.col-type,
+.question-list-table th.col-marks,
+.question-list-table th.col-correct,
+.question-list-table th.col-actions {
+    white-space: nowrap;
+    text-align: center;
+}
+.question-list-table td.col-type,
+.question-list-table td.col-marks,
+.question-list-table td.col-correct,
+.question-list-table td.col-actions {
+    text-align: center;
+    vertical-align: middle;
+}
+.question-list-table td.col-type .exam-badge {
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.question-list-table .col-actions .action-buttons {
+    justify-content: center;
+}
+</style>
+{% endblock %}

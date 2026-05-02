@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student: {{ student.username }} - Exam Security System{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-user-graduate"></i> {{ student.get_full_name|default:student.username }}</h1>
+        <p>Username: {{ student.username }} | Email: {{ student.email|default:"—" }}</p>
+    </div>
+
+    <div class="exam-actions-bar">
+        <a href="{% url 'staff:student_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Students</a>
+        <a href="{% url 'staff:student_performance' %}" class="btn btn-secondary"><i class="fas fa-chart-line"></i> Performance</a>
+    </div>
+
+    <div class="content-card">
+        <h2 class="section-title">Exam Attempts (All Exams)</h2>
+        <div class="exam-table-container">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Exam</th>
+                        <th>Status</th>
+                        <th>Malpractice %</th>
+                        <th>Started</th>
+                        <th>Ended</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in attempts %}
+                    <tr>
+                        <td>{{ a.exam.title }}</td>
+                        <td><span class="exam-badge exam-badge-{{ a.status }}">{{ a.get_status_display }}</span></td>
+                        <td>
+                            <span class="malpractice-score malpractice-{% if a.malpractice_score >= 50 %}high{% elif a.malpractice_score >= 20 %}medium{% else %}low{% endif %}">
+                                {{ a.malpractice_score|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>{{ a.started_at|date:"d/m/y g:i A" }}</td>
+                        <td>{{ a.ended_at|date:"d/m/y g:i A"|default:"—" }}</td>
+                        <td>
+                            {% if a.status in allowed_statuses %}
+                            <a href="{% url 'malpractice:report_detail' a.pk %}" class="btn btn-sm btn-secondary"><i class="fas fa-file-alt"></i> Report</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="empty-state">No attempts yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

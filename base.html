@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="AI-powered exam malpractice detection system">
+    <title>{% block title %}Exam Security System{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="{% if user.is_authenticated %}auth-body{% endif %}">
+    {% if user.is_authenticated %}
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="main-nav">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+    </button>
+
+    <nav class="navbar" role="navigation" aria-label="Main navigation">
+        <div class="nav-container">
+            <a href="{% url 'accounts:dashboard' %}" class="nav-brand">
+                <i class="fas fa-shield-alt"></i>
+                <span>Exam Security</span>
+            </a>
+            
+            <div class="nav-menu" id="main-nav">
+                <div class="nav-user-mobile">
+                    <i class="fas fa-user-circle"></i>
+                    <div class="nav-user-info">
+                        <span class="nav-user-name">{{ user.get_full_name|default:user.username }}</span>
+                        <span class="user-badge">{% if user.is_superuser %}Administrator{% else %}{{ user.get_user_type_display }}{% endif %}</span>
+                    </div>
+                </div>
+
+                {% if user.is_superuser and request.resolver_match and request.resolver_match.app_name == 'admin_dashboard' %}
+                {# Superuser on /admin-console/* : admin-only nav (no duplicate staff tabs) #}
+                <a href="{% url 'admin_dashboard:dashboard' %}" class="nav-link">
+                    <i class="fas fa-shield-halved"></i> Admin Console
+                </a>
+                <a href="{% url 'admin_dashboard:admin_exams' %}" class="nav-link">
+                    <i class="fas fa-file-alt"></i> Exams
+                </a>
+                <a href="{% url 'admin_dashboard:admin_student_performance' %}" class="nav-link">
+                    <i class="fas fa-chart-line"></i> Performance
+                </a>
+                <a href="{% url 'admin_dashboard:dashboard' %}#admin-users" class="nav-link">
+                    <i class="fas fa-users-cog"></i> Users
+                </a>
+                {% else %}
+                <a href="{% url 'accounts:dashboard' %}" class="nav-link">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                {% if user.is_superuser %}
+                <a href="{% url 'admin_dashboard:dashboard' %}" class="nav-link">
+                    <i class="fas fa-shield-halved"></i> Admin Console
+                </a>
+                {% endif %}
+                <a href="{% url 'exams:exam_list' %}" class="nav-link">
+                    <i class="fas fa-file-alt"></i> Exams
+                </a>
+                {% if user.user_type == 'staff' or user.is_superuser %}
+                <a href="{% url 'malpractice:reports' %}" class="nav-link">
+                    <i class="fas fa-flag"></i> Reports
+                </a>
+                {% endif %}
+                {% if user.user_type == 'student' %}
+                <a href="{% url 'student:results' %}" class="nav-link">
+                    <i class="fas fa-chart-line"></i> Results
+                </a>
+                <a href="{% url 'student:profile' %}" class="nav-link">
+                    <i class="fas fa-user-edit"></i> Profile
+                </a>
+                {% endif %}
+                {% if user.is_superuser %}
+                <a href="{% url 'admin_dashboard:dashboard' %}#admin-users" class="nav-link">
+                    <i class="fas fa-users-cog"></i> Users
+                </a>
+                {% endif %}
+                {% if user.user_type == 'staff' %}
+                <a href="{% url 'staff:student_performance' %}" class="nav-link">
+                    <i class="fas fa-chart-line"></i> Student Performance
+                </a>
+                <a href="{% url 'staff:student_list' %}" class="nav-link">
+                    <i class="fas fa-users"></i> Students
+                </a>
+                {% elif user.is_superuser %}
+                <a href="{% url 'admin_dashboard:admin_student_performance' %}" class="nav-link">
+                    <i class="fas fa-chart-line"></i> Student Performance
+                </a>
+                {% endif %}
+                {% if user.user_type == 'staff' %}
+                <a href="{% url 'exams:exam_create' %}" class="nav-link">
+                    <i class="fas fa-plus"></i> Create Exam
+                </a>
+                {% endif %}
+                {% endif %}
+                <div class="nav-divider"></div>
+                <form method="post" action="{% url 'accounts:logout' %}" class="nav-logout-form">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-link logout">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </form>
+            </div>
+            
+            <div class="nav-overlay"></div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- Breadcrumbs -->
+    {% block breadcrumbs %}
+    {% if breadcrumbs %}
+    <div class="breadcrumbs-container">
+        <div class="breadcrumbs">
+            <a href="{% url 'accounts:dashboard' %}"><i class="fas fa-home"></i></a>
+            {% for breadcrumb in breadcrumbs %}
+                {% if breadcrumb.url %}
+                    <i class="fas fa-chevron-right"></i>
+                    <a href="{{ breadcrumb.url }}">{{ breadcrumb.label }}</a>
+                {% else %}
+                    <i class="fas fa-chevron-right"></i>
+                    <span class="current">{{ breadcrumb.label }}</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endblock %}
+
+    <!-- Messages / Toast Notifications -->
+    {% if messages %}
+    <div class="messages-container" id="messages-container" role="region" aria-label="Notifications">
+        {% for message in messages %}
+        <div class="alert alert-{% if 'error' in message.tags %}error{% elif 'success' in message.tags %}success{% elif 'warning' in message.tags %}warning{% else %}info{% endif %}" role="alert" data-auto-dismiss="true">
+            <i class="fas fa-{% if 'error' in message.tags %}exclamation-circle{% elif 'success' in message.tags %}check-circle{% elif 'warning' in message.tags %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+            <span>{{ message }}</span>
+            <button class="alert-close" aria-label="Close notification">&times;</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay" style="display: none;" aria-hidden="true">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <span>Loading...</span>
+        </div>
+    </div>
+
+    <main class="main-content" id="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; {% now "Y" %} Exam Security System. AI-powered malpractice detection for fair assessments.</p>
+        </div>
+    </footer>
+
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+    (function() {
+        var path = window.location.pathname.replace(/\/$/, '') || '/';
+        var best = null, bestLen = -1;
+        var dashboardPaths = ['/staff/dashboard', '/student/dashboard'];
+        var isDashboardPage = (path === '/' || path === '' || dashboardPaths.indexOf(path) >= 0);
+        document.querySelectorAll('.nav-link[href]').forEach(function(a) {
+            var href = (a.getAttribute('href') || '').split('?')[0].replace(/\/$/, '');
+            if (href === '') href = '/';
+            var isDashboardLink = (href === '/');
+            var match = false;
+            if (isDashboardPage && isDashboardLink) {
+                match = true;
+            } else if (path === href || (href.length > 1 && path.indexOf(href) === 0)) {
+                match = true;
+            }
+            var score = isDashboardLink ? 0 : href.length;
+            if (match && score > bestLen) { best = a; bestLen = score; }
+        });
+        if (best) best.classList.add('active');
+    })();
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-copy-cmd]');
+        if (!btn) return;
+        var pre = btn.previousElementSibling;
+        if (!pre || !pre.getAttribute('data-copyable-command')) pre = btn.parentElement && btn.parentElement.querySelector('[data-copyable-command]');
+        var cmd = pre && pre.getAttribute('data-copyable-command');
+        if (!cmd) return;
+        navigator.clipboard.writeText(cmd).then(function() {
+            var orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+            btn.disabled = true;
+            setTimeout(function() { btn.innerHTML = orig; btn.disabled = false; }, 2000);
+        });
+    });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

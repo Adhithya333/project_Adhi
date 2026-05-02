@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Result: {{ attempt.exam.title }} - Exam Security{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-file-alt"></i> Result: {{ attempt.exam.title }}</h1>
+        <p>Your exam attempt summary and malpractice report.</p>
+    </div>
+
+    <div class="exam-actions-bar">
+        <a href="{% url 'student:results' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Results</a>
+    </div>
+
+    <div class="content-card">
+        <div class="exam-detail-card">
+            <div class="exam-meta-row">
+                <span class="exam-badge exam-badge-{{ attempt.status }}">{{ attempt.get_status_display }}</span>
+                <span><i class="fas fa-calendar"></i> Completed: {{ attempt.ended_at|date:"d/m/y g:i A" }}</span>
+            </div>
+            <div class="exam-meta-row">
+                <span class="malpractice-score malpractice-{% if attempt.malpractice_score >= 50 %}high{% elif attempt.malpractice_score >= 20 %}medium{% else %}low{% endif %}">
+                    Malpractice Score: {{ attempt.malpractice_score|floatformat:1 }}%
+                </span>
+            </div>
+            {% if attempt.status == 'flagged' %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> This attempt was flagged for review due to detected anomalies.
+            </div>
+            {% endif %}
+        </div>
+
+        {% if session %}
+        <h2 class="section-title">Detection Metrics</h2>
+        <div class="monitor-stats monitor-stats-compact">
+            <div class="monitor-stat"><span class="stat-value">{{ session.multiple_faces_count }}</span><span class="stat-label">Multiple Faces</span></div>
+            <div class="monitor-stat"><span class="stat-value">{{ session.no_face_count }}</span><span class="stat-label">No Face</span></div>
+            <div class="monitor-stat"><span class="stat-value">{{ session.tab_switch_count }}</span><span class="stat-label">Tab Switch</span></div>
+            <div class="monitor-stat"><span class="stat-value">{{ session.looking_away_count }}</span><span class="stat-label">Looking Away</span></div>
+            <div class="monitor-stat"><span class="stat-value">{{ session.phone_usage_count|default:0 }}</span><span class="stat-label">Phone</span></div>
+        </div>
+
+        {% if events %}
+        <h2 class="section-title">Incident Log</h2>
+        <div class="exam-table-container">
+            <table class="exam-table">
+                <thead>
+                    <tr><th>Type</th><th>Severity</th><th>Time</th><th>Details</th><th>Evidence</th></tr>
+                </thead>
+                <tbody>
+                    {% for e in events %}
+                    <tr>
+                        <td>{{ e.get_event_type_display }}</td>
+                        <td>{{ e.get_severity_display }}</td>
+                        <td>{{ e.timestamp|date:"d/m/y g:i:s A" }}</td>
+                        <td>
+                            {% if e.event_type == 'tab_switch' and e.details.source %}
+                            Browser focus lost ({{ e.details.source }})
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if e.screenshot %}
+                            <a href="{{ e.screenshot.url }}" target="_blank" rel="noopener" class="screenshot-link" title="View camera snapshot evidence">
+                                <img src="{{ e.screenshot.url }}" alt="Incident screenshot" class="incident-thumbnail">
+                            </a>
+                            {% elif e.event_type == 'tab_switch' %}
+                            <span class="text-muted">No screenshot (tab switch event)</span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="text-muted"><i class="fas fa-info-circle"></i> No monitoring data was recorded for this attempt.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

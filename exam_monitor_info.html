@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if title %}{{ title }}{% else %}AI Camera Monitor - Exam Security{% endif %}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-camera"></i> AI Camera Monitor</h1>
+        <p>View monitoring status for exam rooms.</p>
+    </div>
+
+    <div class="content-card monitor-info-card">
+        <h2>How it works</h2>
+        <p>When a student enters an exam room, monitoring starts automatically. Violations are detected and saved to the database with screenshots.</p>
+
+        <h3>{% if exam %}{{ exam.title }} – {% endif %}Exam rooms</h3>
+        {% if rooms %}
+            {% for room in rooms %}
+            <div class="exam-monitor-room monitor-room">
+                <p class="monitor-room-title">
+                    Attempt #{{ room.attempt.pk }} — {{ room.attempt.student.get_full_name|default:room.attempt.student.username }} — {{ room.attempt.exam.title }}
+                </p>
+                <p class="monitor-room-url">Live monitoring: <a href="{{ room.live_monitor_url }}">Open staff monitor dashboard</a></p>
+                <p class="monitor-room-status">Use the monitoring dashboard to follow active attempts and integrity signals in real time.</p>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No exam rooms are currently in progress. When a student starts an exam and enters the room, AI monitoring will start automatically.</p>
+        {% endif %}
+
+        <p class="back-link"><a href="{% url 'accounts:dashboard' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to dashboard</a></p>
+    </div>
+</div>
+{% endblock %}

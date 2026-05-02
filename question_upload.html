@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Upload Questions - {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-file-upload"></i> Upload Questions</h1>
+        <p>Exam: {{ exam.title }}. Upload a PDF or image; text is extracted, questions are parsed, then you can preview before saving. Manual “Add Question” is unchanged.</p>
+    </div>
+
+    <div class="exam-actions-bar">
+        <a href="{% url 'exams:question_list' exam.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Questions</a>
+        <a href="{% url 'exams:question_create' exam.pk %}" class="btn btn-primary"><i class="fas fa-plus"></i> Add Question (manual)</a>
+    </div>
+
+    <div class="content-card content-card--stack">
+        <h2 class="section-title"><i class="fas fa-cloud-upload-alt"></i> Step 1 — Choose file</h2>
+        <p class="text-muted">Supported: PDF, PNG, JPEG. File type and size are validated server-side. Expected format per question block:</p>
+        <pre class="code-sample">Q1. Your question text here
+A. Option 1
+B. Option 2
+C. Option 3
+D. Option 4
+Answer: A</pre>
+        <form method="post" enctype="multipart/form-data" class="upload-questions-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload">
+            {% for field in upload_form %}
+                <div class="form-group">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
+                    {% for err in field.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+                </div>
+            {% endfor %}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Extract &amp; parse</button>
+            </div>
+        </form>
+    </div>
+
+    {% if preview %}
+    <div class="content-card">
+        <h2 class="section-title"><i class="fas fa-eye"></i> Step 2 — Preview</h2>
+        <p class="text-muted import-preview-summary">{{ preview|length }} block(s) detected. <strong>{{ valid_preview_count }}</strong> ready to import (others show validation issues and will be skipped).</p>
+        <div class="import-preview-wrap">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Question</th>
+                        <th>Options</th>
+                        <th>Ans</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in preview %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ row.question_text|truncatewords:25|default:"—" }}</td>
+                        <td>
+                            <small>
+                                A: {{ row.option_a|truncatewords:6|default:"—" }}<br>
+                                B: {{ row.option_b|truncatewords:6|default:"—" }}<br>
+                                C: {{ row.option_c|truncatewords:6|default:"—" }}<br>
+                                D: {{ row.option_d|truncatewords:6|default:"—" }}
+                            </small>
+                        </td>
+                        <td>{{ row.correct_answer|default:"—" }}</td>
+                        <td>
+                            {% if row.errors %}
+                                <span class="attempt-badge attempt-terminated">Invalid</span>
+                                <ul class="import-error-list">
+                                    {% for e in row.errors %}<li>{{ e }}</li>{% endfor %}
+                                </ul>
+                            {% else %}
+                                <span class="attempt-badge attempt-submitted">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="form-actions import-preview-actions">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="confirm">
+                <button type="submit" class="btn btn-primary" {% if valid_preview_count == 0 %}disabled title="No valid rows to import"{% endif %}>
+                    <i class="fas fa-save"></i> Save valid questions to this exam
+                </button>
+            </form>
+            <form method="post" class="form--no-busy">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="cancel">
+                <button type="submit" class="btn btn-secondary"><i class="fas fa-times"></i> Discard preview</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

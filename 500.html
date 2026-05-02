@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server error — Exam Security System</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <main class="main-content simple-page-shell">
+        <div class="content-card simple-page-card">
+            <h1 class="text-danger"><i class="fas fa-server"></i> Server error</h1>
+            <p>Something went wrong. Please try again later or contact support.</p>
+            <p class="text-muted">Error 500</p>
+            <a href="{% url 'accounts:login' %}" class="btn btn-primary"><i class="fas fa-home"></i> Go to login</a>
+        </div>
+    </main>
+</body>
+</html>

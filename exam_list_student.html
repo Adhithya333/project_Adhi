@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load tz %}
+
+{% block title %}Exams - Exam Security{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-file-alt"></i> Exams</h1>
+        <p>Live & Upcoming: exams you can take now or soon. Past: completed exams for viewing results.</p>
+    </div>
+
+    <div class="exam-tabs">
+        <button type="button" class="exam-tab active" data-tab="live" aria-selected="true" role="tab">
+            <i class="fas fa-play-circle"></i> Live & Upcoming
+        </button>
+        <button type="button" class="exam-tab" data-tab="past" aria-selected="false" role="tab">
+            <i class="fas fa-history"></i> Past Exams
+        </button>
+    </div>
+
+    <div class="exam-tab-panel active" id="panel-live" role="tabpanel">
+        {% if live_exam_data %}
+        <h3 class="exam-section-title"><i class="fas fa-circle text-live"></i> Live Now</h3>
+        <div class="exam-grid">
+            {% for item in live_exam_data %}
+            <div class="exam-card">
+                <div class="exam-card-header">
+                    <h3>{{ item.exam.title }}</h3>
+                    <span class="exam-badge exam-badge-live">Live</span>
+                </div>
+                {% if item.exam.description %}
+                <p class="exam-desc">{{ item.exam.description|truncatewords:30 }}</p>
+                {% endif %}
+                <div class="exam-meta">
+                    <span><i class="fas fa-clock"></i> {{ item.exam.duration_minutes }} min</span>
+                </div>
+                <div class="exam-actions">
+                    {% if item.attempt %}
+                    <a href="{% url 'exams:exam_detail' item.exam.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-eye"></i> View Attempt
+                    </a>
+                    {% if item.attempt.status == 'in_progress' %}
+                    <a href="{% url 'exams:exam_room' item.attempt.pk %}" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Resume Exam
+                    </a>
+                    {% else %}
+                    <a href="{% url 'exams:exam_result' item.attempt.pk %}" class="btn btn-secondary" title="View your result">
+                        <i class="fas fa-chart-line"></i> View Result
+                    </a>
+                    {% endif %}
+                    {% else %}
+                    <a href="{% url 'exams:exam_detail' item.exam.pk %}" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Start Exam
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if upcoming_exam_data %}
+        <h3 class="exam-section-title"><i class="fas fa-clock text-upcoming"></i> Upcoming</h3>
+        <div class="exam-grid">
+            {% for item in upcoming_exam_data %}
+            <div class="exam-card">
+                <div class="exam-card-header">
+                    <h3>{{ item.exam.title }}</h3>
+                    <span class="exam-badge exam-badge-upcoming">Upcoming</span>
+                </div>
+                {% if item.exam.description %}
+                <p class="exam-desc">{{ item.exam.description|truncatewords:30 }}</p>
+                {% endif %}
+                <div class="exam-meta">
+                    <span><i class="fas fa-clock"></i> {{ item.exam.duration_minutes }} min</span>
+                    {% if item.exam.start_time %}
+                    <span><i class="fas fa-calendar-alt"></i> Starts {% timezone exam_tz %}{{ item.exam.start_time|date:"d/m/y g:i A" }}{% endtimezone %}</span>
+                    {% endif %}
+                </div>
+                <div class="exam-actions">
+                    <a href="{% url 'exams:exam_detail' item.exam.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-eye"></i> View Details
+                    </a>
+                    <span class="btn btn-disabled" title="Exam starts {% timezone exam_tz %}{{ item.exam.start_time|date:'d/m/y g:i A' }}{% endtimezone %}" disabled>
+                        <i class="fas fa-lock"></i> Starts {% timezone exam_tz %}{{ item.exam.start_time|date:"d/m/y" }}{% endtimezone %}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not live_exam_data and not upcoming_exam_data %}
+        <div class="empty-state-card">
+            <i class="fas fa-inbox fa-3x"></i>
+            <p>No live or upcoming exams at the moment.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="exam-tab-panel" id="panel-past" role="tabpanel" hidden>
+        {% if past_exam_data %}
+        <div class="exam-grid">
+            {% for item in past_exam_data %}
+            <div class="exam-card">
+                <div class="exam-card-header">
+                    <h3>{{ item.exam.title }}</h3>
+                    <span class="exam-badge exam-badge-completed">Completed</span>
+                </div>
+                {% if item.exam.description %}
+                <p class="exam-desc">{{ item.exam.description|truncatewords:30 }}</p>
+                {% endif %}
+                <div class="exam-meta">
+                    <span><i class="fas fa-clock"></i> {{ item.exam.duration_minutes }} min</span>
+                    {% if item.exam.end_time %}
+                    <span><i class="fas fa-calendar-alt"></i> Ended {% timezone exam_tz %}{{ item.exam.end_time|date:"d/m/y" }}{% endtimezone %}</span>
+                    {% endif %}
+                </div>
+                <div class="exam-actions">
+                    {% if item.attempt %}
+                    <a href="{% url 'exams:exam_result' item.attempt.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-chart-line"></i> View Result
+                    </a>
+                    {% else %}
+                    <span class="btn btn-disabled" title="Exam has ended" disabled>
+                        <i class="fas fa-lock"></i> Ended
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state-card">
+            <i class="fas fa-inbox fa-3x"></i>
+            <p>No past exams yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+(function() {
+    var tabs = document.querySelectorAll('.exam-tab');
+    var panels = document.querySelectorAll('.exam-tab-panel');
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            var tabId = tab.getAttribute('data-tab');
+            tabs.forEach(function(t) { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+            panels.forEach(function(p) { p.classList.remove('active'); p.hidden = p.id !== 'panel-' + tabId; });
+            tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
+            var panel = document.getElementById('panel-' + tabId);
+            if (panel) { panel.classList.add('active'); panel.hidden = false; }
+        });
+    });
+})();
+</script>
+{% endblock %}

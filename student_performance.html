@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Performance - Exam Security System{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-chart-line"></i> Student Performance</h1>
+        <p>Performance metrics for all students across all exams.</p>
+    </div>
+
+    <div class="content-card">
+        <div class="exam-table-container">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Username</th>
+                        <th>Attempts</th>
+                        <th>Avg Malpractice %</th>
+                        <th>Flagged</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in performances %}
+                    <tr>
+                        <td><strong>{{ p.user.get_full_name|default:p.user.username }}</strong></td>
+                        <td>{{ p.user.username }}</td>
+                        <td>{{ p.attempt_count }}</td>
+                        <td>
+                            <span class="malpractice-score malpractice-{% if p.avg_malpractice >= 50 %}high{% elif p.avg_malpractice >= 20 %}medium{% else %}low{% endif %}">
+                                {{ p.avg_malpractice|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>{{ p.flagged_count }}</td>
+                        <td>
+                            <a href="{% url 'staff:student_detail' p.user.id %}" class="btn btn-sm btn-secondary"><i class="fas fa-user"></i> Details</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="empty-state">No student performance data yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

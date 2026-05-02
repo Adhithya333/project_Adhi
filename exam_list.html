@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}All exams — Admin Console{% endblock %}
+
+{% block content %}
+<div class="dashboard-container admin-console">
+    <div class="page-sheet admin-exams-sheet">
+        <div class="page-sheet__header">
+            <h1><i class="fas fa-file-alt"></i> All exams</h1>
+            <p>View, edit, manage questions, or remove exams with full admin control.</p>
+        </div>
+
+        <div class="page-sheet__toolbar">
+            <a href="{% url 'admin_dashboard:dashboard' %}" class="btn btn-secondary"><i class="fas fa-shield-halved"></i> Admin home</a>
+            <form method="get" class="admin-filter-form">
+                <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search title, description, creator">
+                <select name="status" class="form-control">
+                    <option value="">All statuses</option>
+                    <option value="draft" {% if status == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="scheduled" {% if status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+                </select>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
+                <a href="{% url 'admin_dashboard:admin_exams' %}" class="btn btn-secondary">Reset</a>
+            </form>
+        </div>
+
+        <div class="page-sheet__body">
+        <p class="admin-list-meta">Showing {{ page_obj.paginator.count }} exam{{ page_obj.paginator.count|pluralize }}{% if q or status %} with current filters{% endif %}.</p>
+        {% if exams %}
+        <div class="exam-table-container admin-exams-table-desktop">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th class="col-title">Title</th>
+                        <th class="col-status">Status</th>
+                        <th class="col-count">Questions</th>
+                        <th class="col-count">Attempts</th>
+                        <th class="col-creator">Creator</th>
+                        <th class="col-created">Created</th>
+                        <th class="col-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ex in exams %}
+                    <tr>
+                        <td class="col-title"><strong>{{ ex.title|truncatewords:12 }}</strong></td>
+                        <td class="col-status"><span class="exam-badge exam-badge-{{ ex.status }}">{{ ex.get_status_display }}</span></td>
+                        <td class="col-count">{{ ex.q_count }}</td>
+                        <td class="col-count">{{ ex.att_count }}</td>
+                        <td class="col-creator">{{ ex.created_by.username }}</td>
+                        <td class="col-created">{{ ex.created_at|date:"d M Y, H:i" }}</td>
+                        <td class="admin-exam-actions">
+                            <div class="admin-exam-actions__top">
+                                <a href="{% url 'exams:exam_detail' ex.pk %}" class="btn btn-sm btn-secondary">View</a>
+                                <a href="{% url 'admin_dashboard:admin_exam_questions' ex.pk %}" class="btn btn-sm btn-secondary">Questions</a>
+                            </div>
+                            {% if ex.status == 'draft' and ex.att_count == 0 %}
+                            <form method="post" action="{% url 'admin_dashboard:admin_exam_delete' ex.pk %}" class="admin-inline-delete-form admin-inline-delete-form--row" onsubmit="return confirm('Delete exam &quot;{{ ex.title|escapejs }}&quot; and all questions, attempts, and answers? This cannot be undone.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-secondary admin-btn-danger-soft"><i class="fas fa-trash-alt"></i> Delete</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="admin-exam-cards-mobile">
+            {% for ex in exams %}
+            <article class="admin-exam-card">
+                <div class="admin-exam-card__head">
+                    <h3>{{ ex.title|truncatewords:12 }}</h3>
+                    <span class="exam-badge exam-badge-{{ ex.status }}">{{ ex.get_status_display }}</span>
+                </div>
+                <p class="admin-exam-card__meta">
+                    <span><strong>Questions:</strong> {{ ex.q_count }}</span>
+                    <span><strong>Attempts:</strong> {{ ex.att_count }}</span>
+                    <span><strong>Creator:</strong> {{ ex.created_by.username }}</span>
+                    <span><strong>Created:</strong> {{ ex.created_at|date:"d M Y, H:i" }}</span>
+                </p>
+                <div class="admin-exam-card__actions">
+                    <a href="{% url 'exams:exam_detail' ex.pk %}" class="btn btn-sm btn-secondary">View</a>
+                    <a href="{% url 'admin_dashboard:admin_exam_questions' ex.pk %}" class="btn btn-sm btn-secondary">Questions</a>
+                    {% if ex.status == 'draft' and ex.att_count == 0 %}
+                    <form method="post" action="{% url 'admin_dashboard:admin_exam_delete' ex.pk %}" class="admin-inline-delete-form" onsubmit="return confirm('Delete exam &quot;{{ ex.title|escapejs }}&quot; and all questions, attempts, and answers? This cannot be undone.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-secondary admin-btn-danger-soft"><i class="fas fa-trash-alt"></i> Delete</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">No exams yet.</p>
+        {% endif %}
+        </div>
+    </div>
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <div class="exam-actions-bar admin-pagination-bar">
+        {% if page_obj.has_previous %}
+        <a class="btn btn-secondary btn-sm" href="?{% if query_base %}{{ query_base }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+        {% endif %}
+        <span class="text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a class="btn btn-secondary btn-sm" href="?{% if query_base %}{{ query_base }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+<style>
+.admin-exams-sheet { margin-bottom: 1rem; }
+.admin-list-meta {
+    margin-bottom: 0.875rem;
+    color: var(--gray-color);
+    font-size: 0.9rem;
+}
+.page-sheet__toolbar .btn { flex-shrink: 0; }
+.admin-exam-actions {
+    vertical-align: middle;
+    min-width: 280px;
+    white-space: normal;
+}
+.admin-exam-actions__top {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+}
+.admin-exam-actions .btn {
+    margin: 0;
+}
+.admin-inline-delete-form { display: inline-flex; margin: 0; }
+.admin-inline-delete-form--row { display: flex; }
+.admin-btn-danger-soft { border-color: #fecaca; color: #b91c1c; }
+.admin-btn-danger-soft:hover { background: #fff1f2; border-color: #fda4af; color: #9f1239; }
+.col-title { min-width: 180px; }
+.col-status { min-width: 110px; }
+.col-count { min-width: 70px; text-align: center; }
+.col-creator { min-width: 140px; }
+.col-created { min-width: 140px; }
+.col-actions { min-width: 290px; }
+.exam-table th.col-count,
+.exam-table td.col-count {
+    text-align: center;
+}
+.exam-table td.col-title strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
+}
+.exam-table th.col-creator,
+.exam-table td.col-creator {
+    white-space: nowrap;
+    text-align: left;
+}
+.exam-table td.col-creator {
+    font-weight: 500;
+}
+.exam-table td.col-created {
+    white-space: nowrap;
+}
+.exam-table .exam-badge {
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+}
+.admin-exams-table-desktop .exam-table th {
+    white-space: nowrap;
+}
+.admin-filter-form {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(150px, 170px) auto auto;
+    gap: 0.5rem;
+    align-items: center;
+    width: min(100%, 820px);
+}
+.admin-filter-form .form-control { min-width: 180px; }
+.admin-filter-form input.form-control { width: 100%; }
+.admin-pagination-bar { justify-content: center; }
+.admin-exam-cards-mobile { display: none; }
+.admin-exams-table-desktop {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.admin-exams-table-desktop .exam-table {
+    min-width: 1120px;
+    table-layout: fixed;
+}
+.admin-exams-table-desktop .exam-table th.col-title,
+.admin-exams-table-desktop .exam-table td.col-title { width: 22%; }
+.admin-exams-table-desktop .exam-table th.col-status,
+.admin-exams-table-desktop .exam-table td.col-status { width: 10%; }
+.admin-exams-table-desktop .exam-table th.col-count,
+.admin-exams-table-desktop .exam-table td.col-count { width: 8%; }
+.admin-exams-table-desktop .exam-table th.col-creator,
+.admin-exams-table-desktop .exam-table td.col-creator { width: 13%; }
+.admin-exams-table-desktop .exam-table th.col-created,
+.admin-exams-table-desktop .exam-table td.col-created { width: 14%; }
+.admin-exams-table-desktop .exam-table th.col-actions,
+.admin-exams-table-desktop .exam-table td.col-actions { width: 25%; }
+.admin-exam-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+.admin-exam-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+}
+.admin-exam-card__head h3 { margin: 0; font-size: 1rem; }
+.admin-exam-card__meta {
+    margin: 0 0 0.7rem 0;
+    color: var(--gray-color);
+    font-size: 0.86rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.3rem 0.75rem;
+}
+.admin-exam-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+@media (max-width: 1200px) {
+    .admin-exams-table-desktop { display: none; }
+    .admin-exam-cards-mobile { display: block; }
+}
+@media (max-width: 980px) {
+    .admin-filter-form {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 768px) {
+    .admin-filter-form {
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+    .admin-exam-card__meta { grid-template-columns: 1fr; }
+    .admin-exam-card__actions .btn { flex: 1 1 auto; }
+}
+</style>
+{% endblock %}

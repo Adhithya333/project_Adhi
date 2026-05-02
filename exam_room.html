@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Exam: {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="exam-room-container" id="exam-room">
+    <div class="exam-room-header">
+        <h1><i class="fas fa-graduation-cap"></i> {{ exam.title }}</h1>
+        <div class="exam-timer">
+            <span id="timer-display">00:00</span>
+            <span class="timer-label">Remaining</span>
+        </div>
+        <div class="webcam-status" id="webcam-status">
+            <i class="fas fa-video-slash"></i> <span>Initializing camera...</span>
+        </div>
+    </div>
+
+    <div class="exam-room-content">
+        <div class="exam-main">
+            <div class="exam-area">
+                {% if questions %}
+                <div class="exam-questions" id="exam-questions">
+                    {% for q, selected in questions_with_answers %}
+                    <div class="question-card" data-question-id="{{ q.pk }}">
+                        <div class="question-number">Question {{ forloop.counter }} of {{ questions|length }}</div>
+                        <p class="question-text">{{ q.question_text }}</p>
+                        <div class="question-options">
+                            {% if q.option_a %}
+                            <label class="option-label">
+                                <input type="radio" name="q{{ q.pk }}" value="A" {% if selected == "A" %}checked{% endif %} data-question-id="{{ q.pk }}">
+                                <span class="option-letter">A.</span> {{ q.option_a }}
+                            </label>
+                            {% endif %}
+                            {% if q.option_b %}
+                            <label class="option-label">
+                                <input type="radio" name="q{{ q.pk }}" value="B" {% if selected == "B" %}checked{% endif %} data-question-id="{{ q.pk }}">
+                                <span class="option-letter">B.</span> {{ q.option_b }}
+                            </label>
+                            {% endif %}
+                            {% if q.option_c %}
+                            <label class="option-label">
+                                <input type="radio" name="q{{ q.pk }}" value="C" {% if selected == "C" %}checked{% endif %} data-question-id="{{ q.pk }}">
+                                <span class="option-letter">C.</span> {{ q.option_c }}
+                            </label>
+                            {% endif %}
+                            {% if q.option_d %}
+                            <label class="option-label">
+                                <input type="radio" name="q{{ q.pk }}" value="D" {% if selected == "D" %}checked{% endif %} data-question-id="{{ q.pk }}">
+                                <span class="option-letter">D.</span> {{ q.option_d }}
+                            </label>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="exam-instructions">
+                    <p>No questions in this exam. Please contact your instructor.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="webcam-panel">
+            <div class="webcam-wrapper">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="overlay"></canvas>
+                <div class="monitor-status-panel" id="monitor-status-panel">
+                    <div class="monitor-line"><span>Face:</span> <span id="disp-face">--</span></div>
+                    <div class="monitor-line"><span>Eyes:</span> <span id="disp-eyes">--</span></div>
+                    <div class="monitor-line"><span>Phone:</span> <span id="disp-phone">--</span></div>
+                    <div class="monitor-line"><span>Timer:</span> <span id="disp-timer">0.0s / 15s</span></div>
+                    <div class="monitor-line"><span>Multiple Faces Count:</span> <span id="disp-multi-count">0</span></div>
+                    <div class="monitor-line"><span>No Face Count:</span> <span id="disp-noface-count">0</span></div>
+                    <div class="monitor-line"><span>Tab Switch Count:</span> <span id="disp-tab-count">0</span></div>
+                    <div class="monitor-line"><span>Looking Away Count:</span> <span id="disp-away-count">0</span></div>
+                    <div class="monitor-line"><span>Phone Usage Count:</span> <span id="disp-phone-count">0</span></div>
+                </div>
+                <div class="face-status" id="face-status">
+                    <i class="fas fa-user"></i> <span>Detecting...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="exam-room-footer">
+        <button type="button" class="btn btn-primary btn-lg" id="submit-exam-btn">
+            <i class="fas fa-check"></i> Submit Exam
+        </button>
+    </div>
+</div>
+
+<input type="hidden" id="attempt-id" value="{{ attempt.pk }}">
+<input type="hidden" id="duration-minutes" value="{{ exam.duration_minutes }}">
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+history.pushState(null, null, location.href);
+window.addEventListener('popstate', function() { history.pushState(null, null, location.href); });
+</script>
+<script src="{% static 'js/exam_room.js' %}"></script>
+{% if questions %}
+<script>
+(function() {
+    var attemptId = document.getElementById('attempt-id')?.value;
+    var saveUrl = '/exams/room/' + attemptId + '/save/';
+    var AUTO_SAVE_INTERVAL = 10000; // 10 seconds
+    var lastSaved = {};
+
+    function saveAnswer(questionId, value) {
+        if (!attemptId || !value) return;
+        if (lastSaved[questionId] === value) return;
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', saveUrl);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('X-CSRFToken', document.querySelector('[name=csrfmiddlewaretoken]')?.value || document.cookie.match(/csrftoken=([^;]+)/)?.[1]?.trim());
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) lastSaved[questionId] = value;
+        };
+        xhr.send(JSON.stringify({ question_id: parseInt(questionId), selected_answer: value }));
+    }
+
+    document.querySelectorAll('.question-options input[type=radio]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            var qId = this.getAttribute('data-question-id');
+            saveAnswer(qId, this.value);
+        });
+    });
+
+    setInterval(function() {
+        document.querySelectorAll('.question-options input[type=radio]:checked').forEach(function(r) {
+            var qId = r.getAttribute('data-question-id');
+            if (qId && lastSaved[qId] !== r.value) saveAnswer(qId, r.value);
+        });
+    }, AUTO_SAVE_INTERVAL);
+})();
+</script>
+{% endif %}
+{% endblock %}

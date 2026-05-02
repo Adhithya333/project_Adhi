@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ exam.title }} - Exam Management{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="exam-detail-card">
+        <div class="exam-detail-header">
+            <h1><i class="fas fa-file-alt"></i> {{ exam.title }}</h1>
+            <div>
+                {% if can_modify_questions %}
+                {% if user.is_superuser %}
+                <a href="{% url 'admin_dashboard:admin_exam_questions' exam.pk %}" class="btn btn-primary"><i class="fas fa-question-circle"></i> Manage Questions</a>
+                {% else %}
+                <a href="{% url 'exams:question_list' exam.pk %}" class="btn btn-primary"><i class="fas fa-question-circle"></i> Manage Questions</a>
+                {% endif %}
+                {% endif %}
+                {% if can_start %}
+                <a href="{% url 'malpractice:live_monitoring' exam.pk %}" class="btn btn-secondary"><i class="fas fa-video"></i> Monitoring</a>
+                {% endif %}
+            </div>
+        </div>
+        <p>{{ exam.description|default:"No description" }}</p>
+        <div class="exam-meta-row">
+            <span><i class="fas fa-clock"></i> {{ exam.duration_minutes }} min</span>
+            <span><i class="fas fa-star"></i> {{ exam.total_marks }} marks</span>
+            <span><i class="fas fa-list-ol"></i> {{ questions|length }} question{{ questions|length|pluralize }}</span>
+            <span class="exam-badge exam-badge-{{ exam.status }}">{{ exam.get_status_display }}</span>
+        </div>
+
+        <h2 class="section-title">Questions in this Exam</h2>
+        <div class="table-scroll">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Question</th>
+                        <th>Type</th>
+                        <th>Marks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in questions %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ q.question_text|truncatewords:18 }}</td>
+                        <td><span class="exam-badge exam-badge-scheduled">{{ q.get_question_type_display }}</span></td>
+                        <td>{{ q.marks }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="empty-cell">No questions added yet for this exam.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted" style="margin-top: 0.75rem;">Use <strong>Manage Questions</strong> to add, edit, delete, or bulk import questions.</p>
+
+        <h2 class="section-title">Exam Attempts</h2>
+        <div class="table-scroll">
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Status</th>
+                        <th>Marks</th>
+                        <th>Malpractice</th>
+                        <th>Started</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attempt in attempts %}
+                    <tr>
+                        <td>{{ attempt.student.get_full_name|default:attempt.student.username }}</td>
+                        <td><span class="attempt-badge attempt-{{ attempt.status }}">{{ attempt.get_status_display }}</span></td>
+                        <td>{{ attempt.total_marks|floatformat:0 }}/{{ exam.total_marks }} ({{ attempt.percentage|floatformat:1 }}%)</td>
+                        <td>
+                            <span class="malpractice-score malpractice-{% if attempt.malpractice_score >= 50 %}high{% elif attempt.malpractice_score >= 20 %}medium{% else %}low{% endif %}">
+                                {{ attempt.malpractice_score|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>{{ attempt.started_at|date:"d/m/y g:i A" }}</td>
+                        <td>
+                            <a href="{% url 'malpractice:report_detail' attempt.pk %}" class="btn btn-sm"><i class="fas fa-chart-bar"></i> Report</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-cell">No attempts yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if user.is_superuser %}
+        <a href="{% url 'admin_dashboard:admin_exams' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
+        {% else %}
+        <a href="{% url 'exams:exam_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

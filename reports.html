@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Malpractice Reports - Exam Security{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1><i class="fas fa-flag"></i> Malpractice Reports</h1>
+        <p>View exam attempts flagged for suspicious activity.</p>
+    </div>
+
+    <div class="exam-table-container">
+        <table class="exam-table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Exam</th>
+                    <th>Status</th>
+                    <th>Malpractice Score</th>
+                    <th>Completed</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attempt in attempts %}
+                <tr>
+                    <td>{{ attempt.student.get_full_name|default:attempt.student.username }}</td>
+                    <td>{{ attempt.exam.title }}</td>
+                    <td><span class="attempt-badge attempt-{{ attempt.status }}">{{ attempt.get_status_display }}</span></td>
+                    <td>
+                        <span class="malpractice-score malpractice-{% if attempt.malpractice_score >= 50 %}high{% elif attempt.malpractice_score >= 20 %}medium{% else %}low{% endif %}">
+                            {{ attempt.malpractice_score|floatformat:1 }}%
+                        </span>
+                    </td>
+                    <td>{{ attempt.ended_at|date:"d/m/y g:i A"|default:"-" }}</td>
+                    <td>
+                        <a href="{% url 'malpractice:report_detail' attempt.pk %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-chart-bar"></i> View Report
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-cell">No malpractice reports yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <a href="{% url 'accounts:dashboard' %}" class="btn btn-secondary" style="margin-top: 1rem;">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+{% endblock %}
